@@ -61,10 +61,6 @@ BOOL WINAPI DllMain(HINSTANCE hDll, DWORD dwReason, LPVOID Reserved)
     {
         case DLL_PROCESS_ATTACH:
             break;
-        case DLL_THREAD_ATTACH:
-            break;
-        case DLL_THREAD_DETACH:
-            break;
         case DLL_PROCESS_DETACH:
             break;
     }
@@ -267,6 +263,11 @@ HRESULT CMyMath::GetTypeInfo(UINT iTypeInfo, LCID lcid, ITypeInfo **ppITypeInfo)
     return (S_OK);
 }
 
+HRESULT CMyMath::GetIDsOfNames(REFIID riid, LPOLESTR *rgszNames,UINT cNames, LCID lcid, DISPID *rgDispId)
+{
+	return (DispGetIDsOfNames(m_pITypeInfo, rgszNames, cNames, rgDispId));
+}
+
 HRESULT CMyMath::Invoke(DISPID dispIdMember, REFIID riid, LCID lcid, WORD wFlags, 
 DISPPARAMS *pDispParams, VARIANT *pVarResult, EXCEPINFO *pExcepInfo, UINT *puArgErr)
 {
@@ -296,5 +297,42 @@ extern "C" HRESULT __stdcall DllGetClassObject(REFCLSID rclsid, REFIID riid, voi
     {
         return (E_OUTOFMEMORY);
     }
-    hr = 
+	hr = pCMyMathClassFactory->QueryInterface(riid, ppv);
+	pCMyMathClassFactory->Release();
+	return (hr);
 }
+
+extern "C" HRESULT __stdcall DllCanUnloadNow(void)
+{
+	if (glNumberOfServerLocks == 0 && glNumberOfActiveComponents == 0)
+	{
+		return (S_OK);
+	}
+	else
+	{
+		return (S_FALSE);
+	}
+}
+
+void ComErrorDescriptionString(HWND hwnd, HRESULT hr)
+{
+	TCHAR* szErrorMessage = NULL;
+	TCHAR str[255];
+	if (FACILITY_WINDOWS == HRESULT_FACILITY(hr))
+	{
+		hr = HRESULT_CODE(hr);
+	}
+	if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM, 
+		NULL, hr, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&szErrorMessage, 0, NULL) != 0)
+	{
+		swprintf_s(str, TEXT("%#x : %s"), hr, szErrorMessage);
+		LocalFree(szErrorMessage);
+	}
+	else
+	{
+		swprintf_s(str, TEXT("[Could not find a description for error # % #x.]\n"), hr);
+	}
+	MessageBox(hwnd, str, TEXT("COM Error, debug"), MB_OK);
+}
+
+
